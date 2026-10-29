@@ -169,10 +169,6 @@ authentik:
   # character key on first install. Set it explicitly only to rotate the key; every
   # authentik session is invalidated when it changes.
   secret_key: ""
-  # -- Petasus: custom CSS configuration
-  customCSS:
-    # -- Mount authentik.css over the server's /web/dist/authentik.css
-    enabled: true
   # -- Petasus: serve the login page in the browser's language (petasus_user_settings.py mounted as /data/user_settings.py)
   browserLanguage:
     # -- Enable the browser language middleware on the server

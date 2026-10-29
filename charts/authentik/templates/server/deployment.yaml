@@ -88,7 +88,7 @@ spec:
             {{- with (concat .Values.global.envFrom .Values.server.envFrom) }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- if or .Values.geoip.enabled .Values.global.volumeMounts .Values.server.volumeMounts .Values.blueprints.configMaps .Values.blueprints.secrets .Values.authentik.customCSS.enabled .Values.authentik.browserLanguage.enabled }}
+          {{- if or .Values.geoip.enabled .Values.global.volumeMounts .Values.server.volumeMounts .Values.blueprints.configMaps .Values.blueprints.secrets .Values.authentik.browserLanguage.enabled }}
           volumeMounts:
             {{- with .Values.global.volumeMounts }}
               {{- toYaml . | nindent 12 }}
@@ -99,12 +99,6 @@ spec:
             {{- if .Values.geoip.enabled }}
             - name: geoip-db
               mountPath: /geoip
-            {{- end }}
-            {{- if .Values.authentik.customCSS.enabled }}
-            - name: authentik-css
-              mountPath: /web/dist/authentik.css
-              subPath: authentik.css
-              readOnly: true
             {{- end }}
             {{- if .Values.authentik.browserLanguage.enabled }}
             - name: user-settings
@@ -233,7 +227,7 @@ spec:
         {{- end }}
         {{- end }}
       {{- end }}
-      {{- if or .Values.geoip.enabled .Values.global.volumes .Values.server.volumes .Values.blueprints.configMaps .Values.blueprints.secrets .Values.authentik.customCSS.enabled .Values.authentik.browserLanguage.enabled }}
+      {{- if or .Values.geoip.enabled .Values.global.volumes .Values.server.volumes .Values.blueprints.configMaps .Values.blueprints.secrets .Values.authentik.browserLanguage.enabled }}
       volumes:
       {{- with .Values.global.volumes }}
         {{- toYaml . | nindent 8 }}
@@ -244,11 +238,6 @@ spec:
       {{- if .Values.geoip.enabled }}
         - name: geoip-db
           emptyDir: {}
-      {{- end }}
-      {{- if .Values.authentik.customCSS.enabled }}
-        - name: authentik-css
-          configMap:
-            name: {{ include "authentik.fullname" . }}-css
       {{- end }}
       {{- if .Values.authentik.browserLanguage.enabled }}
         - name: user-settings
