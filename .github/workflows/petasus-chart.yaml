@@ -1,0 +1,91 @@
+name: Chart
+
+# Publishes charts/authentik to petasus-ai/edgestack-helm with the shared actions of
+# petasus-ai/.github (see PETASUS.md):
+# - a push to main that changes the chart replaces 0.0.0-dev on the dev channel;
+# - a tag v<upstream>-petasus.N on release-<YYYY.M> publishes <upstream>-petasus.N on the
+#   stable channel once, and its GitHub release.
+# Both keep the chart's appVersion, the upstream authentik release, since the images
+# default to it. The workflows of goauthentik/helm (chart-releaser) are not used here.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'charts/authentik/**'
+    tags: ["v*"]
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: chart-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.22.1
+      - name: Lint and render
+        run: |
+          helm dependency build charts/authentik
+          helm lint charts/authentik -f charts/authentik/ci/ct-values.yaml
+          for values in charts/authentik/ci/*.yaml; do
+            helm template authentik charts/authentik -n petasus-system -f "$values" >/dev/null
+          done
+
+  dev:
+    if: github.ref == 'refs/heads/main'
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the upstream version
+        id: chart
+        run: echo "app-version=$(sed -n 's/^appVersion:[[:space:]]*//p' charts/authentik/Chart.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Publish 0.0.0-dev to the dev channel
+        uses: petasus-ai/.github/actions/publish-chart@v1
+        with:
+          chart: charts/authentik
+          channel: dev
+          app-version: ${{ steps.chart.outputs.app-version }}
+          token: ${{ secrets.MY_TOKEN }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: petasus-ai/.github/actions/guard-release-tag@v1
+      - name: Check the tag against the upstream version
+        id: chart
+        run: |
+          version=$(sed -n 's/^version:[[:space:]]*//p' charts/authentik/Chart.yaml)
+          if ! printf '%s\n' "$GITHUB_REF_NAME" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+-petasus\.(0|[1-9][0-9]*)'; then
+            echo "::error::$GITHUB_REF_NAME is not v<upstream>-petasus.N"
+            exit 1
+          fi
+          base=${GITHUB_REF_NAME#v}
+          base=${base%-petasus.*}
+          if [ "$base" != "$version" ]; then
+            echo "::error::$GITHUB_REF_NAME is not based on the chart's upstream version $version"
+            exit 1
+          fi
+          echo "app-version=$(sed -n 's/^appVersion:[[:space:]]*//p' charts/authentik/Chart.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Publish the release to the stable channel
+        uses: petasus-ai/.github/actions/publish-chart@v1
+        with:
+          chart: charts/authentik
+          channel: stable
+          version: ${{ github.ref_name }}
+          app-version: ${{ steps.chart.outputs.app-version }}
+          token: ${{ secrets.MY_TOKEN }}
+      - uses: petasus-ai/.github/actions/github-release@v1
+        with:
+          token: ${{ github.token }}
