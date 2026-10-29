@@ -621,14 +621,19 @@ server:
   ingress:
     # -- enable an ingress resource for the authentik server
     enabled: false
+    # -- Petasus: ConfigMap (in the release namespace) the ingress-nginx proxy-set-headers annotation points at
+    proxySetHeaders: "ak-proxy-headers"
     # -- additional ingress annotations
-    annotations: {}
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # -- additional ingress labels
     labels: {}
     # -- defines which ingress controller will implement the resource
-    ingressClassName: ""
+    ingressClassName: "nginx-petasus-core"
     # -- List of ingress hosts
-    hosts: []
+    hosts:
+      - *externalDomain
       # - authentik.domain.tld
 
     # -- List of ingress paths
@@ -637,7 +642,15 @@ server:
     # -- Ingress path type. One of `Exact`, `Prefix` or `ImplementationSpecific`
     pathType: Prefix
     # -- additional ingress paths
-    extraPaths: []
+    extraPaths:
+      # Petasus: everything outside authentik goes to the console
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ks-console
+            port:
+              number: 80
       # - path: /*
       #   pathType: Prefix
       #   backend:
@@ -647,7 +660,10 @@ server:
       #         name: use-annotation
 
     # -- ingress TLS configuration
-    tls: []
+    tls:
+      - secretName: petasus-auth-tls
+        hosts:
+          - *externalDomain
       # - secretName: authentik-tls
       #   hosts:
       #     - authentik.domain.tld
@@ -659,7 +675,7 @@ server:
     main:
       # -- enable an HTTPRoute resource for the authentik server.
       # Be aware that this is an early beta of this feature. We don't guarantee this works and is subject to change.
-      enabled: false
+      enabled: true
       # -- Set the route apiVersion
       apiVersion: gateway.networking.k8s.io/v1
       # -- Set the route kind
@@ -671,9 +687,13 @@ server:
       labels: {}
 
       # -- Route hostnames
-      hostnames: []
+      hostnames:
+        - *externalDomain
       # -- Reference to parent gateways
-      parentRefs: []
+      parentRefs:
+        # Petasus: the gateway of the bundled nginx-gateway-fabric (gatewaycontroller.gateways)
+        - name: gateway
+          sectionName: https
 
       # -- Create http route for redirect (https://gateway-api.sigs.k8s.io/guides/http-redirect-rewrite/#http-to-https-redirects).
       # Take care that you only enable this on the http listener of the gateway to avoid an infinite redirect.
@@ -690,10 +710,30 @@ server:
             value: "{{ .Values.authentik.web.path }}"
 
       # -- Route filters
-      filters: []
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: X-Forwarded-Host
+                value: *forwardedHost
 
       # -- Additional custom rules that can be added to the route
-      additionalRules: []
+      additionalRules:
+        # Petasus: everything outside authentik goes to the console
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          filters:
+            - type: ExtensionRef
+              extensionRef:
+                group: gateway.nginx.org
+                kind: SnippetsFilter
+                name: accept-ip-sni
+          backendRefs:
+            - name: ks-console
+              namespace: petasus-system
+              port: 80
 
 
 ## authentik worker
@@ -1216,3 +1256,51 @@ redis:
 
 # -- additional resources to deploy. Those objects are templated.
 additionalObjects: []
+
+# -- Petasus: the bundled NGINX Gateway Fabric (Gateway API) that serves the console and
+# authentik on HTTPNodePort. See https://github.com/nginx/nginx-gateway-fabric/tree/main/charts/nginx-gateway-fabric
+gatewaycontroller:
+  enabled: true
+  nginxGateway:
+    gatewayClassName: nginx-petasus-core
+    snippetsFilters:
+      enable: true
+    # fixed by the NGF controller
+    gatewayControllerName: gateway.nginx.org/nginx-gateway-controller
+    replicas: 1
+    config:
+      logging:
+        level: debug
+  # generate the controller and data plane certificates with a job
+  certGenerator:
+    enable: true
+  nginx:
+    config:
+      # the console is also reached by IP, without a matching SNI
+      disableSNIHostValidation: true
+    service:
+      type: NodePort
+      externalTrafficPolicy: Cluster
+      # the NodePort maps to the gateway listener port
+      nodePorts:
+        - port: *HTTPNodePort
+          listenerPort: *HTTPNodePort
+  # HTTPS only: one listener on HTTPNodePort, no plain HTTP listener
+  gateways:
+    - name: gateway
+      labels: {}
+      annotations: {}
+      spec:
+        gatewayClassName: nginx-petasus-core
+        listeners:
+          - name: https
+            port: *HTTPNodePort
+            protocol: HTTPS
+            tls:
+              mode: Terminate
+              certificateRefs:
+                - kind: Secret
+                  name: petasus-auth-tls
+            allowedRoutes:
+              namespaces:
+                from: All

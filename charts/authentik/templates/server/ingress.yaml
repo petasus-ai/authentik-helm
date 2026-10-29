@@ -4,6 +4,8 @@
 {{- $paths := .Values.server.ingress.paths -}}
 {{- $extraPaths := .Values.server.ingress.extraPaths -}}
 {{- $pathType := .Values.server.ingress.pathType -}}
+{{- $ns := include "authentik.namespace" . | default .Release.Namespace | trim -}}
+{{- $psh := trim (default "" .Values.server.ingress.proxySetHeaders) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,6 +19,9 @@ metadata:
   {{- with .Values.server.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
+    {{- if $psh }}
+    nginx.ingress.kubernetes.io/proxy-set-headers: {{ printf "%s/%s" $ns $psh | quote }}
+    {{- end }}
   {{- end }}
 spec:
   {{- with .Values.server.ingress.ingressClassName }}

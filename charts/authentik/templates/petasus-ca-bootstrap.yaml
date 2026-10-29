@@ -1,0 +1,22 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: petasus-auth-selfsigned
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: petasus-auth-cert
+spec:
+  secretName: petasus-auth-tls
+  duration: 876600h
+  renewBefore: 8760h
+  dnsNames:
+    - {{ .Values.global.externalDomain }}
+  privateKey:
+    rotationPolicy: Never       
+  issuerRef:
+    kind: Issuer
+    name: petasus-auth-selfsigned

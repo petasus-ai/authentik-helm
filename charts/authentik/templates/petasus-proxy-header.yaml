@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ak-proxy-headers
+data:
+  X-Forwarded-Proto: "$scheme"
+  X-Forwarded-Host:  "$host"
+  X-Forwarded-For:   "$proxy_add_x_forwarded_for"
+  X-Forwarded-Uri:   "$request_uri"
+  X-Real-IP:         "$remote_addr"
+  Host:              "$host"
+

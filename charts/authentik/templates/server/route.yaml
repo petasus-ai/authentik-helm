@@ -38,6 +38,7 @@ spec:
     {{- else }}
     - backendRefs:
         - name: {{ include "authentik.server.fullname" $ }}
+          namespace: {{ include "authentik.namespace" $ | quote }}
           port: {{ $servicePort }}
       {{- with $route.filters }}
       filters:

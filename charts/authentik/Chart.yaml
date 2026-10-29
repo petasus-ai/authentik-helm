@@ -42,6 +42,12 @@ dependencies:
     version: 2.1.0
     condition: serviceAccount.create
     alias: serviceAccount
+  # Petasus: the gateway that serves the console and authentik
+  - name: nginx-gateway-fabric
+    version: 2.3.0
+    repository: oci://ghcr.io/nginx/charts
+    condition: gatewaycontroller.enabled
+    alias: gatewaycontroller
 annotations:
   artifacthub.io/changes: |
     - kind: changed
