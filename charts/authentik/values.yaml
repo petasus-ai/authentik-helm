@@ -247,6 +247,13 @@ petasus:
     clientSecret: ""
   # -- API token key of the petasus-api-service superuser account (KubeSphere apiToken). Required.
   apiToken: ""
+  # The upgrade guard (templates/petasus-upgrade-guard.yaml): an upgrade from an authentik
+  # older than minimum fails, as authentik cannot skip a minor.
+  upgradeGuard:
+    # -- Refuse an upgrade from an authentik older than minimum
+    enabled: true
+    # -- The upstream minor before this chart's; raise it when merging a new upstream minor
+    minimum: "2026.5.0"
 
 blueprints:
   # -- List of config maps to mount blueprints from.

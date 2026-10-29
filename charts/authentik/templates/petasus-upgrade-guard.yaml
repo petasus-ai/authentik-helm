@@ -1,0 +1,18 @@
+{{- /*
+Petasus: authentik upgrades through every minor in turn and cannot skip one. Before an
+upgrade, the authentik the release runs (the image of the server Deployment) must be
+petasus.upgradeGuard.minimum or later, the upstream minor before this chart's; a hub further
+behind moves its images up one minor at a time first (PETASUS.md). helm template and a first
+install find no Deployment and pass, and so does an image tag that is not a release number.
+*/}}
+{{- if .Values.petasus.upgradeGuard.enabled }}
+{{- $deployment := lookup "apps/v1" "Deployment" (include "authentik.namespace" .) (include "authentik.server.fullname" .) }}
+{{- range dig "spec" "template" "spec" "containers" list $deployment }}
+{{- if eq .name "server" }}
+{{- $tag := regexReplaceAll "@.*$" .image "" | splitList ":" | last }}
+{{- if and (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+$" $tag) (semverCompare (printf "<%s" $.Values.petasus.upgradeGuard.minimum) $tag) }}
+{{- fail (printf "authentik %s cannot be upgraded to %s directly: authentik upgrades through every minor in turn. Move the server and worker images up one minor at a time to %s or later first (PETASUS.md; Petasus runbook authentik-minor-step-upgrade)." $tag $.Chart.AppVersion $.Values.petasus.upgradeGuard.minimum) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

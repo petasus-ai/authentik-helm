@@ -16,6 +16,7 @@ git diff authentik-2025.8.4 release-2025.8 -- charts/authentik
 | Hub defaults: bundled PostgreSQL from `quay.io/edgestack`, init containers that wait for it, `/dev/shm`, authentik under `/auth/`, console password policy | `values.yaml`, `templates/petasus-password-policy.yaml` |
 | Blueprint (brand, accounts, OIDC provider for KubeSphere, flows) and login page | `templates/ak-blueprints-configmap.yaml`, `petasus-login.css`, `petasus_user_settings.py`, `templates/server/deployment.yaml` |
 | Gateway API: bundled NGINX Gateway Fabric, HTTPS listener on the console NodePort, self-signed certificate from cert-manager, console route | `Chart.yaml`, `values.yaml`, `templates/petasus-*.yaml`, `templates/server/route.yaml`, `templates/server/ingress.yaml` |
+| Upgrade guard: no upgrade from an authentik more than one minor behind | `templates/petasus-upgrade-guard.yaml`, `values.yaml` (`petasus.upgradeGuard`) |
 | CI | `.github/workflows/petasus-chart.yaml` (upstream's chart-releaser workflows are removed) |
 
 `petasus/scripts` holds one-off operator scripts (KubeSphere users to authentik, bulk
@@ -51,11 +52,19 @@ Merge, never rebase: release branches are protected from force-pushes.
 
 - A new patch of the same minor: merge it into `release-<YYYY.M>` as well and tag
   `v<new version>-petasus.1`.
-- A new minor: create `release-<YYYY.M>` from `main` once it is tested.
+- A new minor: raise `petasus.upgradeGuard.minimum` in values.yaml to the minor before it
+  (authentik's own `VERSION_FAMILY_PREVIOUS` in `authentik/__init__.py`), and create
+  `release-<YYYY.M>` from `main` once it is tested.
 
 authentik does not support skipping releases: an installation moves through every
 upstream minor in turn (the latest patch of each), and cannot be downgraded. Back up the
-database first. A site that is several minors behind needs each step published.
+database first. From 2026.8 authentik itself refuses to migrate a database more than one
+minor behind, and the chart's upgrade guard (templates/petasus-upgrade-guard.yaml) fails
+the upgrade before anything changes when the server's image is older than
+`petasus.upgradeGuard.minimum`. A hub further behind moves its server and worker images up
+one minor at a time with `kubectl set image` first, then takes the chart: the Petasus
+runbook `authentik-minor-step-upgrade` (operation-manual). Not `helm upgrade --set
+global.image.tag=...`: edgespray's deploy keeps a release's values, so that tag would stay.
 
 ## Releasing
 
