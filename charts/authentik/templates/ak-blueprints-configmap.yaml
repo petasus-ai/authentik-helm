@@ -1,0 +1,354 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ak-blueprints-fixed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: authentik
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  petasus-full-setup.yaml: |
+    version: 1
+    metadata:
+      name: "Petasus Complete Setup"
+    entries:
+      # -------------------------
+      # Brand
+      # -------------------------
+      - model: authentik_brands.brand
+        identifiers:
+          default: true
+        attrs:
+          branding_title: "Petasus AI Cloud"
+          branding_logo: "https://{{ .Values.global.externalDomain }}:{{ .Values.global.HTTPNodePort }}/assets/logo.svg"
+          branding_favicon: "https://{{ .Values.global.externalDomain }}:{{ .Values.global.HTTPNodePort }}/assets/logo.svg"
+          branding_default_flow_background: "https://{{ .Values.global.externalDomain }}:{{ .Values.global.HTTPNodePort }}/assets/resources/images/img/img_login.svg"
+          # The theme lives in attributes.settings; a top-level ui_theme is not a brand field.
+          # No locale is pinned, so the server follows the browser (petasus_user_settings.py).
+          attributes:
+            settings:
+              theme:
+                base: "light"
+          flow_authentication: !Find [authentik_flows.flow, [slug, petasus-authentication-flow]]
+          flow_invalidation: !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
+          flow_recovery: !Find [authentik_flows.flow, [slug, default-recovery-flow]]
+          flow_unenrollment: !Find [authentik_flows.flow, [slug, default-unenrollment-flow]]
+          flow_user_settings: !Find [authentik_flows.flow, [slug, default-user-settings-flow]]
+          flow_device_code: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          branding_custom_css: |
+{{ .Files.Get "petasus-login.css" | indent 12 }}
+
+      # -------------------------
+      # Users / Groups / Token
+      # -------------------------
+      - model: authentik_core.user
+        identifiers:
+          username: "akadmin"
+        attrs:
+          is_superuser: true
+          is_staff: true
+          attributes:
+            role: "platform-admin"
+
+      - model: authentik_core.user
+        identifiers:
+          username: "petasus-api-service"
+        attrs:
+          name: "Petasus API Service Account"
+          email: "api@petasus.local"
+          is_active: true
+          is_superuser: true
+          type: "service_account"
+
+      - model: authentik_core.group
+        identifiers:
+          name: "authentik Admins"
+        attrs:
+          users:
+            - !Find [authentik_core.user, [username, "petasus-api-service"]]
+            - !Find [authentik_core.user, [username, "akadmin"]]
+
+      - model: authentik_core.group
+        identifiers:
+          name: "Petasus API Managers"
+        attrs:
+          name: "Petasus API Managers"
+          users:
+            - !Find [authentik_core.user, [username, "petasus-api-service"]]
+
+      - model: authentik_core.token
+        identifiers:
+          identifier: "petasus-api-token"
+        attrs:
+          user: !Find [authentik_core.user, [username, "petasus-api-service"]]
+          key: {{ required "petasus.apiToken must be set (KubeSphere identityProviders[].provider.apiToken)" .Values.petasus.apiToken | quote }}
+          intent: "api"
+          description: "Petasus REST API Management Token"
+          expiring: false
+
+      # -------------------------
+      # OAuth2 Scope mappings
+      # -------------------------
+      - model: authentik_providers_oauth2.scopemapping
+        identifiers:
+          name: "preferred_username"
+        attrs:
+          scope_name: "profile"
+          description: "Preferred username for authentication"
+          expression: |
+            username = user.username or ""
+            return {"preferred_username": username}
+
+      - model: authentik_providers_oauth2.scopemapping
+        identifiers:
+          name: "sub"
+        attrs:
+          scope_name: "openid"
+          description: "Subject identifier for OpenID"
+          expression: |
+            def normalize_sub(u: str) -> str:
+                if not u:
+                    return ""
+                return str(u)
+            return {"sub": normalize_sub(user.id)}
+
+      - model: authentik_providers_oauth2.scopemapping
+        identifiers:
+          name: "name"
+        attrs:
+          scope_name: "profile"
+          description: "User's full name"
+          expression: |
+            full_name = user.first_name + " " + user.last_name if user.first_name and user.last_name else user.username
+            return {"name": full_name}
+
+      - model: authentik_providers_oauth2.scopemapping
+        identifiers:
+          name: "role"
+        attrs:
+          scope_name: "role"
+          description: "User role information for Petasus"
+          expression: |
+            return {"role": request.user.attributes.get("role", "")}
+
+      - model: authentik_providers_oauth2.scopemapping
+        identifiers:
+          name: "description"
+        attrs:
+          scope_name: "description"
+          description: "User description information for Petasus"
+          expression: |
+            return {"description": request.user.attributes.get("description", "")}
+
+      # -------------------------
+      # (선택) 기본 MFA 스테이지 유지(미사용) — 혼동되면 삭제 가능
+      # -------------------------
+      - model: authentik_stages_authenticator_totp.authenticatortotpstage
+        identifiers:
+          name: "default-authenticator-totp-setup"
+        attrs:
+          issuer: "Petasus"
+          digits: 6
+          period: 30
+          algorithm: "sha1"
+
+      - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+        identifiers:
+          name: "default-authentication-mfa-validation"
+        attrs:
+          device_classes:
+            - totp
+          not_configured_action: configure
+          configuration_stages:
+            - !Find [authentik_stages_authenticator_totp.authenticatortotpstage, [name, "default-authenticator-totp-setup"]]
+
+      # -------------------------
+      # LogIn Stage on Provider Invalidation (Petasus 전용 플로우)
+      # -------------------------
+      - model: authentik_stages_password.passwordstage
+        identifiers:
+          name: "default-authentication-password"
+        attrs:
+          allow_show_password: true
+
+      - model: authentik_stages_identification.identificationstage
+        identifiers:
+          name: "petasus-identification"
+        attrs:
+          user_fields: ["username", "email"]
+          case_insensitive_matching: true
+          show_matched_user: false
+          password_stage: !Find [authentik_stages_password.passwordstage, [name, "default-authentication-password"]]
+
+      - model: authentik_flows.flow
+        identifiers:
+          slug: "petasus-authentication-flow"
+        attrs:
+          name:  "Petasus"
+          # Names the browser tab only; the card hides the flow title.
+          title: "Sign in"
+          designation: authentication
+          # Form sheet on the left, hero on the right (petasus-login.css)
+          layout: sidebar_left
+
+      - model: authentik_flows.flowstagebinding
+        identifiers:
+          order: 10
+          stage:  !Find [authentik_stages_identification.identificationstage, [name, "petasus-identification"]]
+          target: !Find [authentik_flows.flow, [slug, petasus-authentication-flow]]
+
+      # -------------------------
+      # MFA Stage (Petasus 전용) + 조건 정책
+      # -------------------------
+      - model: authentik_stages_authenticator_totp.authenticatortotpstage
+        identifiers:
+          name: "petasus-authenticator-totp-setup"
+        attrs:
+          issuer: "Petasus"
+          digits: 6
+          period: 30
+          algorithm: "sha1"
+
+      - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+        identifiers:
+          name: "petasus-authentication-mfa-validation"
+        attrs:
+          device_classes:
+            - totp
+          not_configured_action: configure
+          configuration_stages:
+            - !Find [authentik_stages_authenticator_totp.authenticatortotpstage, [name, "petasus-authenticator-totp-setup"]]
+
+      - model: authentik_policies_expression.expressionpolicy
+        id: petasus-require-totp-by-petasus-io
+        identifiers:
+          name: "petasus-require-totp-by-petasus-io"
+        attrs:
+          expression: |
+            u = request.user
+            if not u:
+                return False
+            name = (getattr(u, "username", "") or getattr(u, "name", "") or "").strip().lower()
+            if name == "akadmin" or getattr(u, "is_superuser", False):
+                return False
+            def norm(p):
+                if not p:
+                    return ""
+                p = p.strip().lower().replace("\\", "/").strip("/")
+                if p.startswith("root/"):
+                    p = p[5:]
+                return p
+            p_attr  = norm((getattr(u, "attributes", {}) or {}).get("path", ""))
+            p_model = norm(getattr(u, "path", ""))
+            p = p_attr or p_model
+            return p == "petasus.io" or p.startswith("petasus.io/")
+
+      # ← 이 바인딩 ID를 policybinding이 참조합니다.
+      - model: authentik_flows.flowstagebinding
+        id: petasus-authn-mfa-validate-binding
+        identifiers:
+          order: 20
+          stage:  !Find [authentik_stages_authenticator_validate.authenticatorvalidatestage, [name, "petasus-authentication-mfa-validation"]]
+          target: !Find [authentik_flows.flow, [slug, petasus-authentication-flow]]
+
+      - model: authentik_policies.policybinding
+        identifiers:
+          target: !KeyOf petasus-authn-mfa-validate-binding
+          order: 0
+          policy: !KeyOf petasus-require-totp-by-petasus-io
+
+      - model: authentik_flows.flowstagebinding
+        identifiers:
+          order: 30
+          stage:  !Find [authentik_stages_user_login.userloginstage, [name, "default-authentication-login"]]
+          target: !Find [authentik_flows.flow, [slug, petasus-authentication-flow]]
+
+      # -------------------------
+      # Logout Stage on Provider Invalidation
+      # -------------------------
+      - model: authentik_stages_user_logout.userlogoutstage
+        id: petasus-logout-stage
+        identifiers:
+          name: "Petasus - User Logout"
+
+      - model: authentik_flows.flowstagebinding
+        identifiers:
+          order: 10
+          stage: !KeyOf petasus-logout-stage
+          target: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+
+      - model: authentik_stages_redirect.redirectstage
+        id: petasus-logout-redirect
+        identifiers:
+          name: "petasus-logout-redirect"
+        attrs:
+          mode: "static"
+          target_static : "https://{{ .Values.global.externalDomain }}:{{ .Values.global.HTTPNodePort }}/"
+
+      - model: authentik_flows.flowstagebinding
+        identifiers:
+          order: 20
+          stage: !KeyOf petasus-logout-redirect
+          target: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+
+      # -------------------------
+      # 무효화 플로우
+      # -------------------------
+      # default-invalidation-flow 맨 끝에 Redirect 스테이지 바인딩
+      - model: authentik_flows.flowstagebinding
+        identifiers:
+          order: 100
+          stage:  !KeyOf petasus-logout-redirect
+          target: !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
+
+      # Both sign-out flows come from authentik's default blueprints. While they redirect they
+      # show the login page's sheet and hero with the sign-out copy (petasus-login.css).
+      - model: authentik_flows.flow
+        identifiers:
+          slug: "default-provider-invalidation-flow"
+        attrs:
+          layout: sidebar_left
+
+      - model: authentik_flows.flow
+        identifiers:
+          slug: "default-invalidation-flow"
+        attrs:
+          layout: sidebar_left
+
+      # -------------------------
+      # OAuth2 Provider & Application
+      # -------------------------
+      - model: authentik_providers_oauth2.oauth2provider
+        identifiers:
+          name: "Petasus Auth Provider"
+        attrs:
+          name: "Petasus Auth Provider"
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          authentication_flow: !Find [authentik_flows.flow, [slug, petasus-authentication-flow]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+          client_type: "confidential"
+          client_id: {{ .Values.petasus.oidc.clientId | quote }}
+          client_secret: {{ required "petasus.oidc.clientSecret must be set (KubeSphere identityProviders[].provider.clientSecret)" .Values.petasus.oidc.clientSecret | quote }}
+          redirect_uris:
+            - matching_mode: strict
+              url: "https://{{ .Values.global.externalDomain }}:{{ .Values.global.HTTPNodePort }}/oauth/redirect/petasus-oidc"
+          property_mappings:
+            - !Find [authentik_providers_oauth2.scopemapping, [name, "preferred_username"]]
+            - !Find [authentik_providers_oauth2.scopemapping, [name, "sub"]]
+            - !Find [authentik_providers_oauth2.scopemapping, [name, "name"]]
+            - !Find [authentik_providers_oauth2.scopemapping, [name, "role"]]
+            - !Find [authentik_providers_oauth2.scopemapping, [name, "description"]]
+            - !Find [authentik_providers_oauth2.scopemapping, [managed, "goauthentik.io/providers/oauth2/scope-email"]]
+
+      - model: authentik_core.application
+        identifiers:
+          slug: "petasus-oidc"
+        attrs:
+          name: "Petasus"
+          #name: "\u200B"
+          provider: !Find [authentik_providers_oauth2.oauth2provider, [name, "Petasus Auth Provider"]]
+          policy_engine_mode: "all"

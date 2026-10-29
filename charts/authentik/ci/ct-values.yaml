@@ -14,3 +14,7 @@ postgresql:
 
 redis:
   enabled: true
+petasus:
+  oidc:
+    clientSecret: ci-oidc-client-secret
+  apiToken: ci-api-token

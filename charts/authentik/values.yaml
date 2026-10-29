@@ -168,6 +168,14 @@ authentik:
   # character key on first install. Set it explicitly only to rotate the key; every
   # authentik session is invalidated when it changes.
   secret_key: ""
+  # -- Petasus: custom CSS configuration
+  customCSS:
+    # -- Mount authentik.css over the server's /web/dist/authentik.css
+    enabled: true
+  # -- Petasus: serve the login page in the browser's language (petasus_user_settings.py mounted as /data/user_settings.py)
+  browserLanguage:
+    # -- Enable the browser language middleware on the server
+    enabled: true
   events:
     context_processors:
       # -- Path for the GeoIP City database. If the file doesn't exist, GeoIP features are disabled.
@@ -229,10 +237,25 @@ authentik:
     password: ""
 
 
+# Values consumed by the bundled Petasus blueprint (templates/ak-blueprints-configmap.yaml).
+# Both secrets are shared with the KubeSphere OIDC identity provider configuration
+# (identityProviders[].provider.clientSecret / apiToken), so the deployer must supply them
+# and keep the two sides identical. They have no default on purpose.
+petasus:
+  oidc:
+    # -- OAuth2 client id registered for the Petasus console (KubeSphere clientID)
+    clientId: "petasus-oauth2-client-2024"
+    # -- OAuth2 client secret for that client (KubeSphere clientSecret). Required.
+    clientSecret: ""
+  # -- API token key of the petasus-api-service superuser account (KubeSphere apiToken). Required.
+  apiToken: ""
+
 blueprints:
   # -- List of config maps to mount blueprints from.
   # Only keys in the configMap ending with `.yaml` will be discovered and applied.
-  configMaps: []
+  configMaps:
+    # Petasus: the bundled blueprint (templates/ak-blueprints-configmap.yaml)
+    - ak-blueprints-fixed
   # -- List of secrets to mount blueprints from.
   # Only keys in the secret ending with `.yaml` will be discovered and applied.
   secrets: []

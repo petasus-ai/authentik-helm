@@ -33,6 +33,9 @@ spec:
         {{- end }}
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- if .Values.authentik.browserLanguage.enabled }}
+        checksum/user-settings: {{ include (print $.Template.BasePath "/petasus-user-settings.yaml") . | sha256sum }}
+        {{- end }}
         {{- with (mergeOverwrite (deepCopy .Values.global.podAnnotations) .Values.server.podAnnotations) }}
         {{- range $key, $value := . }}
         {{ $key }}: {{ $value | quote }}
@@ -86,7 +89,7 @@ spec:
             {{- with (concat .Values.global.envFrom .Values.server.envFrom) }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- if or .Values.geoip.enabled .Values.global.volumeMounts .Values.server.volumeMounts }}
+          {{- if or .Values.geoip.enabled .Values.global.volumeMounts .Values.server.volumeMounts .Values.blueprints.configMaps .Values.blueprints.secrets .Values.authentik.customCSS.enabled .Values.authentik.browserLanguage.enabled }}
           volumeMounts:
             {{- with .Values.global.volumeMounts }}
               {{- toYaml . | nindent 12 }}
@@ -97,6 +100,26 @@ spec:
             {{- if .Values.geoip.enabled }}
             - name: geoip-db
               mountPath: /geoip
+            {{- end }}
+            {{- if .Values.authentik.customCSS.enabled }}
+            - name: authentik-css
+              mountPath: /web/dist/authentik.css
+              subPath: authentik.css
+              readOnly: true
+            {{- end }}
+            {{- if .Values.authentik.browserLanguage.enabled }}
+            - name: user-settings
+              mountPath: /data/user_settings.py
+              subPath: user_settings.py
+              readOnly: true
+            {{- end }}
+            {{- range $name := .Values.blueprints.configMaps }}
+            - name: blueprints-cm-{{ $name }}
+              mountPath: /blueprints/mounted/cm-{{ $name }}
+            {{- end }}
+            {{- range $name := .Values.blueprints.secrets }}
+            - name: blueprints-secret-{{ $name }}
+              mountPath: /blueprints/mounted/secret-{{ $name }}
             {{- end }}
           {{- end }}
           ports:
@@ -211,7 +234,7 @@ spec:
         {{- end }}
         {{- end }}
       {{- end }}
-      {{- if or .Values.geoip.enabled .Values.global.volumes .Values.server.volumes }}
+      {{- if or .Values.geoip.enabled .Values.global.volumes .Values.server.volumes .Values.blueprints.configMaps .Values.blueprints.secrets .Values.authentik.customCSS.enabled .Values.authentik.browserLanguage.enabled }}
       volumes:
       {{- with .Values.global.volumes }}
         {{- toYaml . | nindent 8 }}
@@ -222,6 +245,26 @@ spec:
       {{- if .Values.geoip.enabled }}
         - name: geoip-db
           emptyDir: {}
+      {{- end }}
+      {{- if .Values.authentik.customCSS.enabled }}
+        - name: authentik-css
+          configMap:
+            name: {{ include "authentik.fullname" . }}-css
+      {{- end }}
+      {{- if .Values.authentik.browserLanguage.enabled }}
+        - name: user-settings
+          configMap:
+            name: {{ include "authentik.fullname" . }}-user-settings
+      {{- end }}
+      {{- range $name := .Values.blueprints.configMaps }}
+        - name: blueprints-cm-{{ $name }}
+          configMap:
+            name: {{ $name }}
+      {{- end }}
+      {{- range $name := .Values.blueprints.secrets }}
+        - name: blueprints-secret-{{ $name }}
+          secret:
+            secretName: {{ $name }}
       {{- end }}
       {{- end }}
       enableServiceLinks: true

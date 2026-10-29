@@ -1,0 +1,495 @@
+/*
+ * Petasus login: brand CSS for authentik 2025.8 (branding_custom_css in the blueprint).
+ *
+ * authentik adopts this sheet into the shadow root of every component and into the document,
+ * so selectors never reach across a component ("ak-flow-executor .x" and ::part match nothing).
+ * The document's copy is printed into a <style> with <, > and & turned into JSON-style unicode
+ * escapes (authentik/brands/utils.py), so rules for the page itself (.ps-hero, body, ak-loading)
+ * must not use them: a child combinator there silently matches nothing.
+ *
+ * Layout: the flow's sidebar_left layout, unwrapped into one grid: a white sheet on the left with
+ * the logo, heading and form centred in it, floating on a purple page. The hero on the right is
+ * real text that petasus_user_settings.py writes into sidebar_left flow pages (.ps-hero).
+ * The sign-in and both sign-out flows use this layout.
+ * Copy follows <html lang>, which the server sets from the browser (petasus_user_settings.py):
+ * Korean pages read Korean, every other language reads English.
+ */
+
+/* #region Fonts: Pretendard, served by the console on the same origin */
+
+@font-face { font-family: "Pretendard"; font-weight: 400; font-display: swap; src: url("/assets/resources/fonts/Pretendard-Regular.woff") format("woff"); }
+@font-face { font-family: "Pretendard"; font-weight: 500; font-display: swap; src: url("/assets/resources/fonts/Pretendard-Medium.woff") format("woff"); }
+@font-face { font-family: "Pretendard"; font-weight: 600; font-display: swap; src: url("/assets/resources/fonts/Pretendard-SemiBold.woff") format("woff"); }
+@font-face { font-family: "Pretendard"; font-weight: 700; font-display: swap; src: url("/assets/resources/fonts/Pretendard-Bold.woff") format("woff"); }
+
+/* html:root outranks PatternFly's :root, which the document adopts after this <style> */
+html:root, :host {
+    --pf-global--FontFamily--sans-serif: "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
+    --pf-global--FontFamily--heading--sans-serif: "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
+}
+:host { font-family: var(--pf-global--FontFamily--sans-serif); word-break: keep-all; }
+
+/* #endregion */
+
+/* #region Copy of the sheet; the hero's copy lives in petasus_user_settings.py */
+
+.pf-c-page__drawer:has(.pf-c-login.sidebar_left) {
+    --copy-welcome: "Welcome";
+    --copy-welcome-lead: "Sign in to the Petasus AI Cloud console.";
+    --copy-help: "Forgot your password? Ask your platform admin.";
+    --copy-mfa: "Verify it's you";
+    --copy-mfa-lead: "Enter the code from your authenticator app.";
+    --copy-mfa-help: "No access to your app? Ask your platform admin.";
+    --copy-busy: "Signing in…";
+    --copy-signout: "Signing out";
+    --copy-signout-lead: "Taking you back to the sign-in page.";
+}
+.pf-c-page__drawer:has(.pf-c-login.sidebar_left):lang(ko) {
+    --copy-welcome: "환영합니다";
+    --copy-welcome-lead: "Petasus AI Cloud 콘솔에 로그인하세요.";
+    --copy-help: "비밀번호를 잊었다면 플랫폼 관리자에게 문의하세요.";
+    --copy-mfa: "2단계 인증";
+    --copy-mfa-lead: "로그인을 마치려면 인증 코드가 필요합니다.";
+    --copy-mfa-help: "인증 앱을 쓸 수 없다면 플랫폼 관리자에게 문의하세요.";
+    --copy-busy: "로그인하는 중…";
+    --copy-signout: "로그아웃하는 중";
+    --copy-signout-lead: "잠시 후 로그인 화면으로 돌아갑니다.";
+}
+
+/* #endregion */
+
+/* #region Tokens */
+
+:root, :host {
+    --ps-primary: #3617ce;
+    --ps-primary-hover: #2a0fb0;
+    --ps-ink: #151a30;
+    --ps-ink-2: #5a6079;
+    --ps-ink-3: #8a90a6;
+    --ps-line: #d8dbe7;
+    --ps-ring: rgba(54, 23, 206, 0.16);
+    /* Violet and blue light pools over a deep purple */
+    --ps-page:
+        radial-gradient(40rem 30rem at 32% 4%, rgba(132, 100, 255, 0.60), transparent 62%),
+        radial-gradient(46rem 36rem at 96% 88%, rgba(43, 108, 240, 0.50), transparent 62%),
+        radial-gradient(30rem 24rem at 70% 40%, rgba(186, 120, 255, 0.22), transparent 60%),
+        linear-gradient(165deg, #2a1490 0%, #1b0b62 60%, #140850 100%);
+    --ps-sheet-shadow: 0 40px 80px -30px rgba(6, 2, 30, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    --ps-spinner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%233617ce' stroke-width='2'%3E%3Ccircle cx='8' cy='8' r='6.5' stroke-opacity='0.18'/%3E%3Cpath d='M8 1.5a6.5 6.5 0 0 1 6.5 6.5' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 8 8' to='360 8 8' dur='0.9s' repeatCount='indefinite'/%3E%3C/path%3E%3C/svg%3E");
+    --pf-global--primary-color--100: var(--ps-primary);
+    --pf-global--primary-color--200: var(--ps-primary-hover);
+    --pf-global--link--Color: var(--ps-primary);
+    --pf-global--Color--100: var(--ps-ink);
+}
+
+/* #endregion */
+
+/* #region Clean-ups of the stock flow page */
+
+/* No footer links */
+.pf-c-login__footer { display: none !important; }
+
+/* Other flows keep the stacked card, centred instead of pinned to the top */
+.pf-c-login.stacked { align-items: center; }
+.pf-c-login.stacked .ak-login-container { height: auto; justify-content: center; }
+.pf-c-login.stacked .pf-c-login__main { margin-top: 0; }
+
+/* The flow title only names the browser tab */
+header.pf-c-login__main-header { display: none; }
+.pf-c-login__main-body { padding: 0 !important; }
+
+/* "Login to continue to Petasus." repeats the logo and has no Korean translation */
+:host(ak-stage-identification) form.pf-c-form > p:first-child { display: none; }
+
+/* Every field is required */
+.pf-c-form__label-required { display: none; }
+
+/* "Not you?" leads to the cancel flow */
+ak-form-static [slot="link"] { display: none; }
+
+/* PatternFly pads the card's last child (the stage) by 4rem */
+.pf-c-login__main { --pf-c-login__main-footer--PaddingBottom: 0px; }
+
+/* The input group paints white behind rounded fields */
+.pf-c-input-group { background: transparent; }
+
+/* #endregion */
+
+/* #region Page */
+
+.pf-c-background-image::before {
+    filter: none;
+    background: var(--ps-page);
+}
+
+/* #endregion */
+
+/* #region Layout: the page wrappers dissolve so their generated boxes join one grid */
+
+/* The right-hand column stays empty for the hero, which sits over it (.ps-hero) */
+.pf-c-page__drawer:has(.pf-c-login.sidebar_left) {
+    display: grid;
+    grid-template-columns: minmax(28rem, 34%) minmax(0, 1fr);
+    min-height: 100vh;
+}
+.pf-c-page__drawer:has(.pf-c-login.sidebar_left) :is(.pf-c-drawer, .pf-c-drawer__main, .pf-c-drawer__content, .pf-c-drawer__body, .pf-c-login) {
+    display: contents;
+}
+
+/* The form sheet: logo, heading and form as one centred group, the help line at the bottom */
+.pf-c-login.sidebar_left .ak-login-container {
+    grid-column: 1;
+    width: auto;
+    height: auto;
+    min-height: calc(100vh - 32px);
+    margin: 16px 0 16px 16px;
+    padding: 44px 64px 36px;
+    justify-content: flex-start;
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: var(--ps-sheet-shadow);
+}
+.pf-c-login.sidebar_left .pf-c-login__main {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 22.5rem;
+    margin: 0 auto;
+    background: transparent;
+    box-shadow: none;
+}
+.pf-c-login.sidebar_left .pf-c-login__main > :not(.pf-c-brand) { order: 2; }
+/* The brand box and the help line grow alike, so the group between them stays centred */
+.pf-c-login.sidebar_left .pf-c-brand {
+    flex: 1 0 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 36px;
+    padding: 0;
+    max-height: none;
+}
+.pf-c-login.sidebar_left .ak-brand img { padding: 0; height: 28px; width: auto; max-height: none; }
+
+/* Heading, lead and help line; the TOTP step swaps in its own. Labels and fields stay left-aligned. */
+.pf-c-login.sidebar_left .pf-c-brand::after {
+    content: var(--copy-welcome);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-align: center;
+    color: var(--ps-ink);
+}
+.pf-c-login.sidebar_left .pf-c-login__main::before {
+    order: 1;
+    content: var(--copy-welcome-lead);
+    align-self: center;
+    margin: 8px 0 32px;
+    font-size: 15px;
+    text-align: center;
+    color: var(--ps-ink-2);
+}
+/* Shrinks to its text so the icon sits right before it */
+.pf-c-login.sidebar_left .pf-c-login__main::after {
+    order: 3;
+    content: var(--copy-help);
+    flex: 1 0 auto;
+    align-self: center;
+    display: flex;
+    align-items: flex-end;
+    margin-top: 40px;
+    padding-left: 24px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a9fb4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E") 0 calc(100% - 1px) / 16px 16px no-repeat;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ps-ink-3);
+}
+.pf-c-login.sidebar_left .pf-c-login__main:has(> ak-stage-authenticator-validate) .pf-c-brand::after { content: var(--copy-mfa); }
+.pf-c-login.sidebar_left .pf-c-login__main:has(> ak-stage-authenticator-validate)::before { content: var(--copy-mfa-lead); }
+.pf-c-login.sidebar_left .pf-c-login__main:has(> ak-stage-authenticator-validate)::after { content: var(--copy-mfa-help); }
+
+/* #endregion */
+
+/* #region Hero: eyebrow, headline, lead and four capability tiles */
+
+/* Real text in the page (petasus_user_settings.py), laid over the sheet's empty right-hand column */
+.ps-hero {
+    position: fixed;
+    inset: 0 0 0 max(28rem, 34vw);
+    z-index: 1;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 48px 5vw 48px max(6vw, calc((66vw - 34rem) / 2));
+    overflow-y: auto;
+    font-family: var(--pf-global--FontFamily--sans-serif);
+    word-break: keep-all;
+    color: #ffffff;
+}
+.ps-hero ::selection { background: rgba(255, 255, 255, 0.92); color: #2a1490; }
+/* Auto margins on the first and last item: centred while it fits, scrolled from the top when not */
+.ps-hero__eyebrow {
+    margin: auto 0 0;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.10);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: 0.14em;
+}
+.ps-hero__headline {
+    margin: 22px 0 0;
+    font-size: clamp(2rem, 2.6vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.26;
+    letter-spacing: -0.025em;
+    color: inherit;
+}
+.ps-hero__headline:lang(ko) { font-size: clamp(2.25rem, 3.1vw, 3rem); }
+.ps-hero__lead {
+    margin: 18px 0 0;
+    font-size: 17px;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.74);
+}
+/* Tiles: 2 x 2 glass cards with a small mark in the corner */
+.ps-hero__tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 260px));
+    gap: 16px;
+    width: min(100%, 536px);
+    margin: 40px 0 auto;
+    padding: 0;
+    list-style: none;
+}
+.ps-hero__tiles li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 112px;
+    box-sizing: border-box;
+    padding: 22px 40px 22px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+}
+.ps-hero__tiles li::after {
+    content: "";
+    position: absolute;
+    top: 22px;
+    right: 20px;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: #9fb4ff;
+}
+.ps-hero__tiles strong { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.ps-hero__tiles span { font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, 0.72); }
+
+/* #endregion */
+
+/* #region Busy: a stage submitting, the redirect after the last stage, and signing out */
+
+/* authentik lays a dark box over the form column while a stage submits; it now only blocks clicks */
+.pf-c-login.sidebar_left .pf-c-login__main > ak-loading-overlay { opacity: 0; }
+.pf-c-login.sidebar_left .pf-c-login__main > :not(.pf-c-brand) { transition: opacity 0.15s; }
+.pf-c-login.sidebar_left .pf-c-login__main:has(> ak-loading-overlay) > :not(.pf-c-brand, ak-loading-overlay) { opacity: 0.45; }
+
+/* The redirect after the last stage has no card of its own (the flow inspector still shows it) */
+.pf-c-drawer.pf-m-collapsed .pf-c-login.sidebar_left .pf-c-login__main > ak-stage-redirect { display: none; }
+.pf-c-login.sidebar_left .pf-c-login__main:has(> ak-stage-redirect)::after { visibility: hidden; }
+
+/* The lead turns into a spinner and the busy copy */
+.pf-c-login.sidebar_left .pf-c-login__main:has(> :is(ak-loading-overlay, ak-stage-redirect))::before {
+    content: var(--copy-busy);
+    padding-left: 24px;
+    background: var(--ps-spinner) 0 center / 16px 16px no-repeat;
+    font-weight: 500;
+    color: var(--ps-primary);
+}
+
+/* A thin bar runs along the top of the sheet */
+.pf-c-login.sidebar_left .ak-login-container { position: relative; overflow: hidden; }
+.pf-c-login.sidebar_left .ak-login-container::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, #5233f2, #3617ce) -67% 0 / 40% 100% no-repeat, rgba(54, 23, 206, 0.12);
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+}
+.pf-c-login.sidebar_left .ak-login-container:has(> .pf-c-login__main > :is(ak-loading-overlay, ak-stage-redirect))::before,
+:host([flowslug$="invalidation-flow"]) .pf-c-login.sidebar_left .ak-login-container::before {
+    opacity: 1;
+    animation: ps-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes ps-progress {
+    from { background-position: -67% 0, 0 0; }
+    to { background-position: 167% 0, 0 0; }
+}
+
+/* Signing out: both invalidation flows show the sheet with the sign-out copy and no card */
+:host([flowslug$="invalidation-flow"]) .pf-c-login.sidebar_left .pf-c-login__main > :is(ak-flow-card, ak-stage-redirect) { display: none; }
+:host([flowslug$="invalidation-flow"]) .pf-c-login.sidebar_left .pf-c-brand::after { content: var(--copy-signout); }
+:host([flowslug$="invalidation-flow"]) .pf-c-login.sidebar_left .pf-c-login__main::before {
+    content: var(--copy-signout-lead);
+    padding-left: 24px;
+    background: var(--ps-spinner) 0 center / 16px 16px no-repeat;
+    font-weight: 400;
+    color: var(--ps-ink-2);
+}
+:host([flowslug$="invalidation-flow"]) .pf-c-login.sidebar_left .pf-c-login__main::after { visibility: hidden; }
+
+/* #endregion */
+
+/* #region Before the flow script runs: the page is purple at once and the loader stands where the sheet will be */
+
+/* On body, so it spreads to the canvas as PatternFly's white does; on html it would leave body
+   painting that white over the flow's own backdrop, which sits below at z-index -1 */
+body:has(.ps-hero) { background: var(--ps-page); }
+body:has(.ps-hero) ak-flow-executor ak-loading {
+    position: fixed;
+    inset: 16px auto 16px 16px;
+    width: calc(max(28rem, 34vw) - 16px);
+    overflow: hidden;
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: var(--ps-sheet-shadow);
+}
+
+/* #endregion */
+
+/* #region Form controls */
+
+.pf-c-form { --pf-c-form--GridGap: 20px; }
+.pf-c-form__label { padding-bottom: 8px; }
+.pf-c-form__label-text { font-size: 13px; font-weight: 600; color: var(--ps-ink-2); }
+
+/* Inputs: full outline, 44px, rounded, purple focus ring */
+.pf-c-form-control {
+    --pf-c-form-control--Height: 44px;
+    padding: 0 14px;
+    font-size: 15px;
+    color: var(--ps-ink);
+    background: #ffffff;
+    border: 1px solid var(--ps-line);
+    border-radius: 8px;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+.pf-c-form-control::placeholder { color: var(--ps-ink-3); }
+.pf-c-form-control:hover { border-color: #b9bdd0; }
+.pf-c-form-control:focus {
+    padding: 0 14px;
+    border-width: 1px;
+    border-color: var(--ps-primary);
+    box-shadow: 0 0 0 3px var(--ps-ring);
+    outline: none;
+}
+.pf-c-form-control.pf-m-icon { padding-right: 44px; }
+
+/* Field icons: grey at rest, purple while typing */
+input.pf-c-form-control[name="uidField"],
+input.pf-c-form-control[autocomplete="current-password"],
+input.pf-c-form-control[name="code"] {
+    padding-left: 44px;
+    background-position: 14px center;
+    background-size: 20px 20px;
+    background-repeat: no-repeat;
+}
+input.pf-c-form-control[name="uidField"] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239a9fb4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4.5 20c1.2-3.6 4.1-5.5 7.5-5.5s6.3 1.9 7.5 5.5'/%3E%3C/svg%3E"); }
+input.pf-c-form-control[name="uidField"]:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%233617ce' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4.5 20c1.2-3.6 4.1-5.5 7.5-5.5s6.3 1.9 7.5 5.5'/%3E%3C/svg%3E"); }
+input.pf-c-form-control[autocomplete="current-password"] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239a9fb4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3Cpath d='M12 14.5v2'/%3E%3C/svg%3E"); }
+input.pf-c-form-control[autocomplete="current-password"]:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%233617ce' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3Cpath d='M12 14.5v2'/%3E%3C/svg%3E"); }
+input.pf-c-form-control[name="code"] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239a9fb4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z'/%3E%3Cpath d='M9 12l2 2 4-4'/%3E%3C/svg%3E"); }
+input.pf-c-form-control[name="code"]:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%233617ce' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z'/%3E%3Cpath d='M9 12l2 2 4-4'/%3E%3C/svg%3E"); }
+
+/* Password: the eye toggle sits inside the field */
+.pf-c-input-group { position: relative; }
+.pf-c-input-group > .pf-c-button.pf-m-control {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+    color: var(--ps-ink-3);
+    z-index: 2;
+}
+.pf-c-input-group > .pf-c-button.pf-m-control::after { border: 0; }
+.pf-c-input-group > .pf-c-button.pf-m-control:hover { color: var(--ps-ink); }
+
+/* Primary button: the hero's purple as a gradient, with an arrow that nudges on hover */
+.pf-c-form__group.pf-m-action { margin-top: 8px; }
+.pf-c-button.pf-m-primary {
+    height: 48px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    --pf-c-button--m-primary--BackgroundColor: var(--ps-primary);
+    --pf-c-button--m-primary--hover--BackgroundColor: var(--ps-primary-hover);
+    --pf-c-button--m-primary--focus--BackgroundColor: var(--ps-primary-hover);
+    --pf-c-button--m-primary--active--BackgroundColor: var(--ps-primary-hover);
+    background-image: linear-gradient(135deg, #5233f2 0%, #3617ce 52%, #2a0fb0 100%);
+    box-shadow: 0 10px 24px -10px rgba(54, 23, 206, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.pf-c-button.pf-m-primary:hover { background-image: linear-gradient(135deg, #4a2bea 0%, #2f12bd 52%, #240c9c 100%); }
+.pf-c-button.pf-m-primary::after {
+    content: "";
+    position: static;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-left: 8px;
+    vertical-align: -4px;
+    border: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='M13 6l6 6-6 6'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+    transition: transform 0.15s ease;
+}
+.pf-c-button.pf-m-primary:hover::after { transform: translateX(3px); }
+
+/* Error alert: a quiet inline box */
+.pf-c-alert.pf-m-inline.pf-m-danger {
+    border: 1px solid #f3c7c7;
+    border-radius: 8px;
+    background: #fdf3f3;
+    box-shadow: none;
+    padding: 10px 14px;
+}
+.pf-c-alert.pf-m-inline.pf-m-danger::before { display: none; }
+.pf-c-alert__title { font-size: 13px; font-weight: 500; }
+
+/* TOTP step: user chip, hint and the code */
+.form-control-static .pf-c-avatar { width: 32px; height: 32px; }
+.form-control-static .username { font-weight: 600; color: var(--ps-ink); }
+:host(ak-stage-authenticator-validate-code) .icon-description {
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f3f1fd;
+    color: var(--ps-ink-2);
+    font-size: 13px;
+}
+:host(ak-stage-authenticator-validate-code) .icon-description i { font-size: 20px; padding: 0; color: var(--ps-primary); }
+:host(ak-stage-authenticator-validate-code) input[name="code"] { letter-spacing: 0.3em; font-size: 18px; font-weight: 600; }
+:host(ak-stage-authenticator-validate-code) input[name="code"]::placeholder { letter-spacing: normal; font-size: 15px; font-weight: 400; }
+
+/* #endregion */
+
+/* #region Narrow screens: the sheet takes the whole width and the hero steps aside */
+
+@media (max-width: 64rem) {
+    .pf-c-page__drawer.pf-c-page__drawer:has(.pf-c-login.sidebar_left) { grid-template-columns: 1fr; }
+    .pf-c-login.sidebar_left .ak-login-container { margin: 16px; padding: 40px 24px 32px; }
+    .ps-hero { display: none; }
+    body:has(.ps-hero) ak-flow-executor ak-loading { right: 16px; width: auto; }
+}
+
+/* #endregion */

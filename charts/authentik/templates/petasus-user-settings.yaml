@@ -1,0 +1,11 @@
+{{- if .Values.authentik.browserLanguage.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "authentik.fullname" . }}-user-settings
+  labels:
+    {{- include "authentik.labels" (dict "context" . "component" "user-settings") | nindent 4 }}
+data:
+  user_settings.py: |
+{{ .Files.Get "petasus_user_settings.py" | indent 4 }}
+{{- end }}
