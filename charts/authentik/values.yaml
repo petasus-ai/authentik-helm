@@ -1013,7 +1013,11 @@ worker:
 
   # -- Deployment strategy to be added to the authentik worker Deployment
   # @default -- `{}` (defaults to global.deploymentStrategy)
-  deploymentStrategy: {}
+  # Petasus: replace the worker instead of rolling it. During a rollout the old worker keeps
+  # taking tasks: against a database the new release has migrated (columns it still selects
+  # are gone) and with the old blueprint ConfigMap, which it applies over the new one.
+  deploymentStrategy:
+    type: Recreate
     # type: RollingUpdate
     # rollingUpdate:
     #   maxSurge: 25%
