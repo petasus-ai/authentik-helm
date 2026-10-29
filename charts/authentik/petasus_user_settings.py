@@ -12,9 +12,9 @@ from django.utils.translation import get_language, get_language_from_request, ov
 class BrowserLanguageMiddleware:
     """Answer in the browser's language when neither the brand nor the user picked one.
 
-    authentik ships no LocaleMiddleware, so the server-side text of the login page (the
-    button, error messages) stays English for every visitor unless the brand pins a single
-    locale. HTML pages also get <html lang>, which lets the brand CSS pick its copy.
+    authentik 2026.8 runs Django's LocaleMiddleware and writes <html lang> itself, which lets
+    the brand CSS pick its copy; this keeps the rule explicit: the brand's or the user's
+    locale when one is pinned, else the browser's.
 
     Flow pages in the sidebar_left layout also get the hero as real text, so it can be
     selected and copied and shows before the flow script loads (.ps-hero in petasus-login.css).
@@ -72,7 +72,7 @@ class BrowserLanguageMiddleware:
     def _tag_html(cls, response, language):
         if response.streaming or not response.get("Content-Type", "").startswith("text/html"):
             return response
-        content = response.content.replace(b"<html>", f'<html lang="{language}">'.encode(), 1)
+        content = response.content
         if cls.sidebar_flow_marker in content:
             content = content.replace(b"<body>", b"<body>" + cls._hero_html(language), 1)
         response.content = content
