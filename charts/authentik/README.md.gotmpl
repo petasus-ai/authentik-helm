@@ -38,15 +38,23 @@ postgresql:
   enabled: true
   auth:
     password: "ThisIsNotASecurePassword"
+```
 
-redis:
-  enabled: true
+## Setting the authentik version
+
+> [!WARNING]
+> This should only be used to adjust the patch version of authentik as newer chart versions might require a matching authentik version.
+
+```yaml
+global:
+  image:
+    tag: 2025.12.4
 ```
 
 ## Advanced values examples
 
 <details>
-<summary>External PostgreSQL and Redis</summary>
+<summary>External PostgreSQL</summary>
 
 ```yaml
 authentik:
@@ -54,8 +62,6 @@ authentik:
     host: postgres.domain.tld
     user: file:///postgres-creds/username
     password: file:///postgres-creds/password
-  redis:
-    host: redis.domain.tld
 server:
   volumes:
     - name: postgres-creds
@@ -99,3 +105,4 @@ The secret `authentik-postgres-credentials` must have `username` and `password` 
 [Tolerations]: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 [TopologySpreadConstraints]: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
 [values.yaml]: values.yaml
+[authentik configuration docs]: https://docs.goauthentik.io/install-config/configuration/

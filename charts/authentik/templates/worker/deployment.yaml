@@ -43,12 +43,13 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.worker.serviceAccountName }}
-      serviceAccountName: {{ . }}
-      {{- else }}
-      {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "authentik-remote-cluster.fullname" .Subcharts.serviceAccount }}
+      {{- if .Values.worker.serviceAccountName }}
+      serviceAccountName: {{ .Values.worker.serviceAccountName | quote }}
+      {{- else if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "authentik-remote-cluster.fullname" .Subcharts.serviceAccount | quote }}
       {{- end }}
+      {{- if kindIs "bool" .Values.worker.automountServiceAccountToken }}
+      automountServiceAccountToken: {{ .Values.worker.automountServiceAccountToken }}
       {{- end }}
       {{- with .Values.global.hostAliases }}
       hostAliases:
@@ -78,13 +79,11 @@ spec:
             {{- with (concat .Values.global.env .Values.worker.env) }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
-            - name: AUTHENTIK_LISTEN__HTTP
-              value: {{ printf "0.0.0.0:%v" .Values.worker.containerPorts.http | quote }}
-            - name: AUTHENTIK_LISTEN__METRICS
-              value: {{ printf "0.0.0.0:%v" .Values.worker.containerPorts.metrics | quote }}
           envFrom:
+            {{- if or .Values.authentik.enabled .Values.authentik.existingSecret.secretName }}
             - secretRef:
-                name: {{ template "authentik.fullname" . }}
+                name: {{ template "authentik.secret.name" . }}
+            {{- end }}
             {{- with (concat .Values.global.envFrom .Values.worker.envFrom) }}
               {{- toYaml . | nindent 12 }}
             {{- end }}

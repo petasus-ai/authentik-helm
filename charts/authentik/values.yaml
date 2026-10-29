@@ -157,7 +157,8 @@ global:
     #   emptyDir: {}
 
 
-## Authentik configuration
+# -- Authentik configuration. See the [authentik configuration docs] for details about which values are accepted here. See the note at the top of that page for details about transforming environment variable names into values here.
+# @default -- See [values.yaml]
 authentik:
   # -- whether to create the authentik configuration secret
   enabled: true
@@ -176,6 +177,11 @@ authentik:
   browserLanguage:
     # -- Enable the browser language middleware on the server
     enabled: true
+  ## use existing secret for authentik configuration instead of creating one
+  ## WARNING: when set, authentik.* secret values are ignored
+  existingSecret:
+    # -- name of an existing secret to use for authentik configuration. This secret must contain keys matching configuration option names, see the docs for the full list of configuration options https://docs.goauthentik.io/install-config/configuration/
+    secretName: ""
   events:
     context_processors:
       # -- Path for the GeoIP City database. If the file doesn't exist, GeoIP features are disabled.
@@ -228,14 +234,10 @@ authentik:
     # -- postgresql Username
     # @default -- `authentik`
     user: "authentik"
+    # -- postgresql password
     password: "authentik"
+    # -- postgresql port
     port: 5432
-  redis:
-    # -- set the redis hostname to talk to
-    # @default -- `{{ .Release.Name }}-redis-master`
-    host: "{{ .Release.Name }}-redis-master"
-    password: ""
-
 
 # Values consumed by the bundled Petasus blueprint (templates/ak-blueprints-configmap.yaml).
 # Both secrets are shared with the KubeSphere OIDC identity provider configuration
@@ -431,6 +433,8 @@ server:
 
   # -- serviceAccount to use for authentik server pods
   serviceAccountName: ~
+  # -- (bool) automount behavior for service account token in server pods. Only applies if server.serviceAccountName is set.
+  automountServiceAccountToken: ~
 
   # -- authentik server pod-level security context
   # @default -- `{}` (See [values.yaml])
@@ -446,7 +450,7 @@ server:
     # runAsNonRoot: true
     # readOnlyRootFilesystem: true
     # allowPrivilegeEscalation: false
-    # seccomProfile:
+    # seccompProfile:
     #   type: RuntimeDefault
     # capabilities:
     #   drop:
@@ -850,19 +854,13 @@ worker:
   # -- Init containers to add to the authentik worker pod
   ## Note: Supports use of custom Helm templates
   initContainers:
-    # Petasus: start once the bundled PostgreSQL and Redis answer
+    # Petasus: start once the bundled PostgreSQL answers
     - name: wait-for-db
       image: quay.io/edgestack/postgres:18-alpine
       command: ["sh", "-c", "until pg_isready -h ${AUTHENTIK_POSTGRESQL__HOST} -p 5432; do echo waiting for db; sleep 3; done"]
       env:
         - name: AUTHENTIK_POSTGRESQL__HOST
           value: "{{ .Release.Name }}-postgresql"
-    - name: wait-for-redis
-      image: quay.io/edgestack/redis:8.2.3
-      command: ["sh", "-c", "until redis-cli -h ${AUTHENTIK_REDIS__HOST} -p 6379 ping | grep PONG; do echo waiting for redis; sleep 3; done"]
-      env:
-        - name: AUTHENTIK_REDIS__HOST
-          value: "{{ .Release.Name }}-redis-master"
 
   # -- Additional volumeMounts to the authentik worker main container
   volumeMounts: []
@@ -908,6 +906,8 @@ worker:
 
   # -- serviceAccount to use for authentik worker pods. If set, overrides the value used when serviceAccount.create is true
   serviceAccountName: ~
+  # -- (bool) automount behavior for service account token in worker pods. Only applies if worker.serviceAccountName is set.
+  automountServiceAccountToken: ~
 
   # -- authentik worker pod-level security context
   # @default -- `{}` (See [values.yaml])
@@ -923,7 +923,7 @@ worker:
     # runAsNonRoot: true
     # readOnlyRootFilesystem: true
     # allowPrivilegeEscalation: false
-    # seccomProfile:
+    # seccompProfile:
     #   type: RuntimeDefault
     # capabilities:
     #   drop:
@@ -1147,7 +1147,7 @@ geoip:
     # runAsNonRoot: true
     # readOnlyRootFilesystem: true
     # allowPrivilegeEscalation: false
-    # seccomProfile:
+    # seccompProfile:
     #   type: RuntimeDefault
     # capabilities:
     #   drop:
@@ -1217,7 +1217,14 @@ postgresql:
     #   accessModes:
     #     - ReadWriteOnce
     containerSecurityContext:
-      readOnlyRootFilesystem: false
+      readOnlyRootFilesystem: true
+    extraVolumeMounts:
+      - name: postgresql-socket
+        mountPath: /var/run/postgresql
+    extraVolumes:
+      - name: postgresql-socket
+        emptyDir: {}
+
   readReplicas:
     resourcesPreset: "none"
   backup:
@@ -1226,33 +1233,14 @@ postgresql:
     resourcesPreset: "none"
   volumePermissions:
     resourcesPreset: "none"
+    image:
+      repository: debian
+      tag: 13-slim
   metrics:
     resourcesPreset: "none"
-
-
-redis:
-  # -- enable the Bitnami Redis chart. Refer to https://github.com/bitnami/charts/blob/main/bitnami/redis/ for possible values.
-  enabled: true
-  image:
-    registry: quay.io
-    repository: edgestack/redis
-    tag: "8.2.3"
-  architecture: standalone
-  auth:
-    enabled: false
-  master:
-    resourcesPreset: "none"
-  replica:
-    resourcesPreset: "none"
-  sentinel:
-    resourcesPreset: "none"
-  metrics:
-    resourcesPreset: "none"
-  volumePermissions:
-    resourcesPreset: "none"
-  sysctl:
-    resourcesPreset: "none"
-
+    image:
+      repository: prometheuscommunity/postgres-exporter
+      tag: v0.19.1
 
 # -- additional resources to deploy. Those objects are templated.
 additionalObjects: []
