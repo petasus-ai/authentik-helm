@@ -152,8 +152,10 @@ authentik:
   enabled: true
   # -- Log level for server and worker
   log_level: info
-  # -- Secret key used for cookie singing and unique user IDs,
-  # don't change this after the first install
+  # -- Secret key used for cookie signing and unique user IDs. Leave empty to keep the
+  # value already stored in the release Secret (upgrades) or to generate a random 50
+  # character key on first install. Set it explicitly only to rotate the key; every
+  # authentik session is invalidated when it changes.
   secret_key: ""
   events:
     context_processors:

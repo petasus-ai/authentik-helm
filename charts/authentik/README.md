@@ -17,7 +17,8 @@ authentik is an open-source Identity Provider focused on flexibility and versati
 
 ```yaml
 authentik:
-  secret_key: "PleaseGenerateA50CharKey"
+  # leave secret_key empty: the chart keeps the existing key on upgrade and generates one on first install
+  secret_key: ""
   # This sends anonymous usage-data, stack traces on errors and
   # performance data to authentik.error-reporting.a7k.io, and is fully opt-in
   error_reporting:
@@ -123,7 +124,7 @@ The secret `authentik-postgres-credentials` must have `username` and `password` 
 | authentik.postgresql.user | string | `authentik` | postgresql Username |
 | authentik.redis.host | string | `{{ .Release.Name }}-redis-master` | set the redis hostname to talk to |
 | authentik.redis.password | string | `""` |  |
-| authentik.secret_key | string | `""` | Secret key used for cookie singing and unique user IDs, don't change this after the first install |
+| authentik.secret_key | string | `""` | Secret key used for cookie signing and unique user IDs. Leave empty to keep the value already stored in the release Secret (upgrades) or to generate a random 50 character key on first install. Set it explicitly only to rotate the key; every authentik session is invalidated when it changes. |
 | authentik.web.path | string | `"/"` | Relative path the authentik instance will be available at. Value _must_ contain both a leading and trailing slash. |
 | blueprints.configMaps | list | `[]` | List of config maps to mount blueprints from. Only keys in the configMap ending with `.yaml` will be discovered and applied. |
 | blueprints.secrets | list | `[]` | List of secrets to mount blueprints from. Only keys in the secret ending with `.yaml` will be discovered and applied. |
