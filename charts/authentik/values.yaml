@@ -9,6 +9,12 @@ kubeVersionOverride: ""
 
 ## Globally shared configuration for authentik components.
 global:
+  # -- Petasus: console domain; used by the ingress, route, gateway, certificate and blueprint
+  externalDomain: &externalDomain "console.petasus.io"
+  # -- Petasus: console NodePort, also the gateway listener port
+  HTTPNodePort: &HTTPNodePort 30880
+  # -- Petasus: X-Forwarded-Host the route sets for authentik
+  forwardedHost: &forwardedHost "console.petasus.io:30880"
 
   # To override bitnami images
   security:
@@ -141,7 +147,12 @@ global:
 
   # -- Additional volumes to all deployed Deployments.
   # @default -- `[]` (See [values.yaml])
-  volumes: []
+  volumes:
+    # Petasus: shared memory for the server (mounted at /dev/shm by server.volumeMounts)
+    - name: dev-shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 1Gi
     # - name: custom
     #   emptyDir: {}
 
@@ -151,7 +162,7 @@ authentik:
   # -- whether to create the authentik configuration secret
   enabled: true
   # -- Log level for server and worker
-  log_level: info
+  log_level: debug
   # -- Secret key used for cookie signing and unique user IDs. Leave empty to keep the
   # value already stored in the release Secret (upgrades) or to generate a random 50
   # character key on first install. Set it explicitly only to rotate the key; every
@@ -165,7 +176,8 @@ authentik:
       asn: /geoip/GeoLite2-ASN.mmdb
   web:
     # -- Relative path the authentik instance will be available at. Value _must_ contain both a leading and trailing slash.
-    path: /
+    # Petasus: authentik is served under /auth/ next to the console
+    path: "/auth/"
   email:
     # -- SMTP Server emails are sent from, fully optional
     host: ""
@@ -208,7 +220,7 @@ authentik:
     # -- postgresql Username
     # @default -- `authentik`
     user: "authentik"
-    password: ""
+    password: "authentik"
     port: 5432
   redis:
     # -- set the redis hostname to talk to
@@ -339,15 +351,19 @@ server:
 
   # -- Init containers to add to the authentik server pod
   ## Note: Supports use of custom Helm templates
-  initContainers: []
-  # - name: download-tools
-  #   image: alpine:3
-  #   command: [sh, -c]
-  #   args:
-  #     - echo init
+  initContainers:
+    # Petasus: start once the bundled PostgreSQL answers
+    - name: wait-for-db
+      image: quay.io/edgestack/postgres:18-alpine
+      command: ["sh", "-c", "until pg_isready -h ${AUTHENTIK_POSTGRESQL__HOST} -p 5432; do echo waiting for db; sleep 3; done"]
+      env:
+        - name: AUTHENTIK_POSTGRESQL__HOST
+          value: "{{ .Release.Name }}-postgresql"
 
   # -- Additional volumeMounts to the authentik server main container
-  volumeMounts: []
+  volumeMounts:
+    - name: dev-shm
+      mountPath: /dev/shm
     # - name: custom
     #   mountPath: /custom
 
@@ -508,9 +524,9 @@ server:
     # -- authentik server service type
     type: ClusterIP
     # -- authentik server service http port for NodePort service type (only if `server.service.type` is set to `NodePort`)
-    nodePortHttp: 30080
+    nodePortHttp: 30081
     # -- authentik server service https port for NodePort service type (only if `server.service.type` is set to `NodePort`)
-    nodePortHttps: 30443
+    nodePortHttps: 30083
     # -- authentik server service http port
     servicePortHttp: 80
     # -- authentik server service https port
@@ -770,12 +786,20 @@ worker:
 
   # -- Init containers to add to the authentik worker pod
   ## Note: Supports use of custom Helm templates
-  initContainers: []
-  # - name: download-tools
-  #   image: alpine:3
-  #   command: [sh, -c]
-  #   args:
-  #     - echo init
+  initContainers:
+    # Petasus: start once the bundled PostgreSQL and Redis answer
+    - name: wait-for-db
+      image: quay.io/edgestack/postgres:18-alpine
+      command: ["sh", "-c", "until pg_isready -h ${AUTHENTIK_POSTGRESQL__HOST} -p 5432; do echo waiting for db; sleep 3; done"]
+      env:
+        - name: AUTHENTIK_POSTGRESQL__HOST
+          value: "{{ .Release.Name }}-postgresql"
+    - name: wait-for-redis
+      image: quay.io/edgestack/redis:8.2.3
+      command: ["sh", "-c", "until redis-cli -h ${AUTHENTIK_REDIS__HOST} -p 6379 ping | grep PONG; do echo waiting for redis; sleep 3; done"]
+      env:
+        - name: AUTHENTIK_REDIS__HOST
+          value: "{{ .Release.Name }}-redis-master"
 
   # -- Additional volumeMounts to the authentik worker main container
   volumeMounts: []
@@ -1086,15 +1110,15 @@ prometheus:
 
 postgresql:
   # -- enable the Bitnami PostgreSQL chart. Refer to https://github.com/bitnami/charts/blob/main/bitnami/postgresql/ for possible values.
-  enabled: false
+  enabled: true
   image:
-    registry: docker.io
-    repository: library/postgres
-    tag: "17.6-bookworm"
+    registry: quay.io
+    repository: edgestack/postgres
+    tag: "18-alpine"
   auth:
     username: authentik
     database: authentik
-    # password: ""
+    password: "authentik"
   primary:
     args:
       - -c
@@ -1145,11 +1169,11 @@ postgresql:
 
 redis:
   # -- enable the Bitnami Redis chart. Refer to https://github.com/bitnami/charts/blob/main/bitnami/redis/ for possible values.
-  enabled: false
+  enabled: true
   image:
-    registry: docker.io
-    repository: library/redis
-    tag: "8.2.1"
+    registry: quay.io
+    repository: edgestack/redis
+    tag: "8.2.3"
   architecture: standalone
   auth:
     enabled: false
