@@ -36,13 +36,18 @@ default to. The tag must be based on the chart's upstream version or CI refuses 
 
 ## Following upstream
 
-Merge, never rebase: release branches are protected from force-pushes.
+The Upstream workflow checks goauthentik/helm every day and offers a release newer than
+main's base: a pull request merging it into main, or an issue listing the conflicting
+files when it does not merge cleanly. To merge by hand:
 
 ```sh
+git remote add upstream https://github.com/goauthentik/helm   # once
 git fetch upstream --tags
 git switch main
 git merge authentik-<new version>      # resolve, mostly values.yaml and the deployments
 ```
+
+Merge, never rebase: release branches are protected from force-pushes.
 
 - A new patch of the same minor: merge it into `release-<YYYY.M>` as well and tag
   `v<new version>-petasus.1`.

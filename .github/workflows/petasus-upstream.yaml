@@ -1,0 +1,61 @@
+name: Upstream
+
+# Watches goauthentik/helm for a chart release (tag authentik-X.Y.Z) newer than the one
+# main is based on, and offers it: a pull request merging the tag into main when it merges
+# cleanly, an issue listing the conflicting files when it does not (see PETASUS.md,
+# Following upstream). Nothing is merged without review.
+on:
+  schedule:
+    - cron: '23 1 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  offer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.MY_TOKEN }}
+      - name: Offer the newest upstream release
+        env:
+          # MY_TOKEN, so that the pull request runs the chart workflow
+          GH_TOKEN: ${{ secrets.MY_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch -q --no-tags https://github.com/goauthentik/helm '+refs/tags/authentik-*:refs/tags/authentik-*'
+          tag=$(git tag -l 'authentik-*' | grep -Ex 'authentik-[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+          if git merge-base --is-ancestor "$tag" HEAD; then
+            echo "main already has $tag"
+            exit 0
+          fi
+          branch="upstream/$tag"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch is offered already"
+            exit 0
+          fi
+          if gh issue list --state open --search "\"$tag\" in:title" --json number --jq '.[0].number' | grep -q .; then
+            echo "an issue for $tag is open already"
+            exit 0
+          fi
+          git config user.name edgestack-bot
+          git config user.email edgestack-bot@users.noreply.github.com
+          git switch -q -c "$branch"
+          if git merge --no-edit -m "Chore: merge upstream $tag" "$tag"; then
+            git push -q origin "$branch"
+            gh pr create --base main --head "$branch" --title "Chore: merge upstream $tag" --body "goauthentik/helm released \`$tag\`; this merges it into main. Check the chart on a hub before tagging a release (PETASUS.md)."
+          else
+            conflicts=$(git diff --name-only --diff-filter=U | sed 's/^/- /')
+            git merge --abort
+            gh issue create --title "Merge upstream $tag" --body "goauthentik/helm released \`$tag\`, which does not merge cleanly into main. Conflicting files:
+
+          $conflicts
+
+          Merge it by hand (PETASUS.md, Following upstream)."
+          fi
