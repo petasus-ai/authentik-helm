@@ -33,6 +33,9 @@ spec:
         {{- end }}
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- /* The worker applies the bundled blueprint when it starts; it misses a change to the
+             mounted ConfigMap until its next discovery run */}}
+        checksum/blueprints: {{ include (print $.Template.BasePath "/ak-blueprints-configmap.yaml") . | sha256sum }}
         {{- with (mergeOverwrite (deepCopy .Values.global.podAnnotations) .Values.worker.podAnnotations) }}
         {{- range $key, $value := . }}
         {{ $key }}: {{ $value | quote }}
