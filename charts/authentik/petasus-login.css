@@ -209,11 +209,13 @@ body:has(.ps-hero), body:has(.ps-hero)::before {
 
 /* #region Hero: eyebrow, headline, lead and four capability tiles */
 
-/* Real text in the page (petasus_user_settings.py), laid over the sheet's empty right-hand column */
+/* Real text in the page (petasus_user_settings.py), laid over the sheet's empty right-hand column.
+   Above the flow drawer's content (z-index 100), a transparent full-width layer that would
+   otherwise take the pointer, and below its inspector panel (200) and the toasts. */
 .ps-hero {
     position: fixed;
     inset: 0 0 0 max(28rem, 34vw);
-    z-index: 1;
+    z-index: 150;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
