@@ -5,7 +5,17 @@ petasus.upgradeGuard.minimum or later, the upstream minor before this chart's; a
 behind moves its images up one minor at a time first (PETASUS.md). helm template and a first
 install find no Deployment and pass, and so does an image tag that is not a release number.
 */}}
+{{- /*
+The console's Gateway moved from an NGINX Gateway Fabric bundled in this chart to the hub's.
+Left to an upgrade, the bundled one's data plane keeps the console's NodePort, the hub's
+cannot take it and does not try again: the console stays down while everything looks healthy.
+So the bundled controller and data plane go first (Petasus runbook authentik-minor-step-upgrade).
+*/}}
 {{- if .Values.petasus.upgradeGuard.enabled }}
+{{- $namespace := include "authentik.namespace" . }}
+{{- if or (lookup "apps/v1" "Deployment" $namespace (printf "%s-gatewaycontroller" (include "authentik.fullname" .))) (lookup "v1" "Service" $namespace "gateway-nginx-petasus-core") }}
+{{- fail "The bundled NGINX Gateway Fabric is still running: delete its controller and data plane right before this upgrade, or the console stays down (Petasus runbook authentik-minor-step-upgrade)." }}
+{{- end }}
 {{- $deployment := lookup "apps/v1" "Deployment" (include "authentik.namespace" .) (include "authentik.server.fullname" .) }}
 {{- range dig "spec" "template" "spec" "containers" list $deployment }}
 {{- if eq .name "server" }}

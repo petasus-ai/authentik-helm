@@ -247,6 +247,14 @@ petasus:
     clientSecret: ""
   # -- API token key of the petasus-api-service superuser account (KubeSphere apiToken). Required.
   apiToken: ""
+  # The Gateway that serves the console and authentik on global.HTTPNodePort, on the hub's
+  # NGINX Gateway Fabric, which edgespray's gateway-api role installs
+  # (templates/petasus-gateway.yaml).
+  gateway:
+    # -- Create the console's Gateway
+    enabled: true
+    # -- GatewayClass of the hub's NGINX Gateway Fabric
+    className: nginx
   # The upgrade guard (templates/petasus-upgrade-guard.yaml): an upgrade from an authentik
   # older than minimum fails, as authentik cannot skip a minor.
   upgradeGuard:
@@ -698,7 +706,7 @@ server:
         - *externalDomain
       # -- Reference to parent gateways
       parentRefs:
-        # Petasus: the gateway of the bundled nginx-gateway-fabric (gatewaycontroller.gateways)
+        # Petasus: the console's Gateway (templates/petasus-gateway.yaml)
         - name: gateway
           sectionName: https
 
@@ -1251,51 +1259,3 @@ postgresql:
 
 # -- additional resources to deploy. Those objects are templated.
 additionalObjects: []
-
-# -- Petasus: the bundled NGINX Gateway Fabric (Gateway API) that serves the console and
-# authentik on HTTPNodePort. See https://github.com/nginx/nginx-gateway-fabric/tree/main/charts/nginx-gateway-fabric
-gatewaycontroller:
-  enabled: true
-  nginxGateway:
-    gatewayClassName: nginx-petasus-core
-    snippetsFilters:
-      enable: true
-    # fixed by the NGF controller
-    gatewayControllerName: gateway.nginx.org/nginx-gateway-controller
-    replicas: 1
-    config:
-      logging:
-        level: debug
-  # generate the controller and data plane certificates with a job
-  certGenerator:
-    enable: true
-  nginx:
-    config:
-      # the console is also reached by IP, without a matching SNI
-      disableSNIHostValidation: true
-    service:
-      type: NodePort
-      externalTrafficPolicy: Cluster
-      # the NodePort maps to the gateway listener port
-      nodePorts:
-        - port: *HTTPNodePort
-          listenerPort: *HTTPNodePort
-  # HTTPS only: one listener on HTTPNodePort, no plain HTTP listener
-  gateways:
-    - name: gateway
-      labels: {}
-      annotations: {}
-      spec:
-        gatewayClassName: nginx-petasus-core
-        listeners:
-          - name: https
-            port: *HTTPNodePort
-            protocol: HTTPS
-            tls:
-              mode: Terminate
-              certificateRefs:
-                - kind: Secret
-                  name: petasus-auth-tls
-            allowedRoutes:
-              namespaces:
-                from: All

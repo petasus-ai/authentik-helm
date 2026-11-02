@@ -1,4 +1,4 @@
-{{- if .Values.gatewaycontroller.enabled }}
+{{- if .Values.petasus.gateway.enabled }}
 apiVersion: gateway.nginx.org/v1alpha1
 kind: SnippetsFilter
 metadata:

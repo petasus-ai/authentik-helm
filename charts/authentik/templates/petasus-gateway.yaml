@@ -1,0 +1,49 @@
+{{- if .Values.petasus.gateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gateway
+  namespace: {{ include "authentik.namespace" . }}
+  labels:
+    {{- include "authentik.labels" (dict "context" . "component" "gateway") | nindent 4 }}
+spec:
+  gatewayClassName: {{ .Values.petasus.gateway.className }}
+  infrastructure:
+    parametersRef:
+      group: gateway.nginx.org
+      kind: NginxProxy
+      name: {{ include "authentik.fullname" . }}-gateway
+  listeners:
+    - name: https
+      port: {{ .Values.global.HTTPNodePort }}
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: petasus-auth-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+# What the console's data plane needs beyond the GatewayClass' NginxProxy, whose image and
+# control plane placement it keeps
+apiVersion: gateway.nginx.org/v1alpha2
+kind: NginxProxy
+metadata:
+  name: {{ include "authentik.fullname" . }}-gateway
+  namespace: {{ include "authentik.namespace" . }}
+  labels:
+    {{- include "authentik.labels" (dict "context" . "component" "gateway") | nindent 4 }}
+spec:
+  # the console is also reached by IP, without a matching SNI
+  disableSNIHostValidation: true
+  kubernetes:
+    service:
+      type: NodePort
+      externalTrafficPolicy: Cluster
+      # the NodePort maps to the listener port
+      nodePorts:
+        - port: {{ .Values.global.HTTPNodePort }}
+          listenerPort: {{ .Values.global.HTTPNodePort }}
+{{- end }}

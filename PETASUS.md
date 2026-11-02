@@ -15,8 +15,8 @@ git diff authentik-2025.8.4 release-2025.8 -- charts/authentik
 | Secret key: generated on first install, kept on upgrades | `templates/secret.yaml` |
 | Hub defaults: bundled PostgreSQL from `quay.io/edgestack`, init containers that wait for it, `/dev/shm`, authentik under `/auth/`, console password policy | `values.yaml`, `templates/petasus-password-policy.yaml` |
 | Blueprint (brand, accounts, OIDC provider for KubeSphere, flows) and login page | `templates/ak-blueprints-configmap.yaml`, `petasus-login.css`, `petasus_user_settings.py`, `templates/server/deployment.yaml` |
-| Gateway API: bundled NGINX Gateway Fabric, HTTPS listener on the console NodePort, self-signed certificate from cert-manager, console route | `Chart.yaml`, `values.yaml`, `templates/petasus-*.yaml`, `templates/server/route.yaml`, `templates/server/ingress.yaml` |
-| Upgrade guard: no upgrade from an authentik more than one minor behind | `templates/petasus-upgrade-guard.yaml`, `values.yaml` (`petasus.upgradeGuard`) |
+| Gateway API: the console's Gateway on the hub's NGINX Gateway Fabric (edgespray's gateway-api role), HTTPS listener on the console NodePort, self-signed certificate from cert-manager, console route | `values.yaml` (`petasus.gateway`), `templates/petasus-gateway.yaml`, `templates/petasus-*.yaml`, `templates/server/route.yaml`, `templates/server/ingress.yaml` |
+| Upgrade guard: no upgrade from an authentik more than one minor behind, or over the NGINX Gateway Fabric this chart used to bundle | `templates/petasus-upgrade-guard.yaml`, `values.yaml` (`petasus.upgradeGuard`) |
 | CI | `.github/workflows/petasus-chart.yaml` (upstream's chart-releaser workflows are removed) |
 
 `petasus/scripts` holds one-off operator scripts (KubeSphere users to authentik, bulk
